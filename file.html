@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who Are You?</title>
+    <style>
+        /* Body Style */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #1e3c72, #2a5298); /* Gradient background */
+            text-align: center;
+            transition: background 0.5s ease;
+        }
+
+
+        /* Title */
+        h1 {
+            color: white;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
+            margin-top: 20px;
+        }
+
+
+        /* Pause Button */
+        #pause-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+
+        #pause-button:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+
+        /* Video Container */
+        #video-container {
+            position: relative;
+            width: 320px;
+            height: 240px;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        }
+
+
+        #video {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+        }
+
+
+        #scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: rgba(0, 255, 0, 0.7);
+            box-shadow: 0 0 8px rgba(0, 255, 0, 0.7);
+            animation: scan-animation 2s infinite ease-in-out;
+            display: none;
+        }
+
+
+        @keyframes scan-animation {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+
+        /* Capture Button */
+        #capture {
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #ff6b6b;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+
+        #capture:hover {
+            background-color: #ff4757;
+        }
+
+
+        /* Result Text */
+        #result {
+            margin-top: 20px;
+            font-size: 1.5em;
+            color: white;
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+        }
+
+
+        /* Firework canvas */
+        #fireworks {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+
+        /* Pause Menu */
+        #pause-menu {
+            display: none;
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+        }
+
+
+        #pause-menu ul {
+            list-style: none;
+            padding: 0;
+        }
+
+
+        #pause-menu li {
+            margin: 10px 0;
+        }
+
+
+        #pause-menu input[type="text"] {
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #fff;
+            background-color: #333;
+            color: white;
+        }
+
+
+        #pause-menu input[type="button"] {
+            padding: 8px 15px;
+            background-color: #48C9B0;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+
+
+        #pause-menu input[type="button"]:hover {
+            background-color: #1abc9c;
+        }
+    </style>
+
+
+    <!-- Include html2canvas from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <h1>Who Are You?</h1>
+    <div id="video-container">
+        <video id="video" autoplay aria-label="Live webcam feed"></video>
+        <div id="scan-line"></div>
+    </div>
+
+
+    <button id="pause-button">Pause</button>
+    <div id="pause-menu">
+        <h2>Classification History</h2>
+        <ul id="history-list"></ul>
+        <h2>Available Classifications</h2>
+        <ul id="classification-list"></ul>
+        <h2>Add Custom Classification</h2>
+        <input type="text" id="new-characterization" placeholder="Add your own characterization" />
+        <input type="button" value="Add" id="add-characterization" />
+    </div>
+
+
+    <button id="capture">Capture & Classify</button>
+    <p id="result" aria-live="assertive"></p>
+    <button id="share" style="display:none;">Share your Classification</button>
+    <canvas id="fireworks"></canvas>
+
+
+    <script>
+        const video = document.getElementById('video');
+        const scanLine = document.getElementById('scan-line');
+        const result = document.getElementById('result');
+        const fireworksCanvas = document.getElementById('fireworks');
+        const fireworksCtx = fireworksCanvas.getContext('2d');
+        const captureButton = document.getElementById('capture');
+        const shareButton = document.getElementById('share');
+        const addButton = document.getElementById('add-characterization');
+        const newCharacterizationInput = document.getElementById('new-characterization');
+        const pauseButton = document.getElementById('pause-button');
+        const pauseMenu = document.getElementById('pause-menu');
+        const historyList = document.getElementById('history-list');
+        const classificationList = document.getElementById('classification-list');
+
+
+        const defaultCharacterizations = [
+            "Tall", "Short", "Gamer", "Outdoorsy", "Smart",
+            "Dumb", "Special", "Daddies Special Baby Girl", "Masterbater", "Weird",
+            "Body Count 100+", "Stalker", "Fighter", "Kidnapper", "Henti Watcher",
+            "Squiggly Diggly Dicker", "That Feeling When... Knee Surgery Is Tomnorow", "Porn Enthusiastt", "Child Pornographer", "Night Owl",
+            "Early Bird", "Select All", "Thinker", "Artist", "???", "No Sleeper"
+        ];
+
+
+        let characterizations = [...defaultCharacterizations];
+        let classificationHistory = {};
+        const scanStartSound = new Audio('https://www.soundjay.com/button/beep-05.wav'); // Short beep sound for scan start
+        const scanEndSound = new Audio('https://www.soundjay.com/button/beep-06.wav'); // Sound for classification
+
+
+        // Start video stream
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(error => {
+                console.error("Camera access denied:", error);
+            });
+
+
+        // Toggle pause menu visibility
+        pauseButton.addEventListener('click', () => {
+            pauseMenu.style.display = (pauseMenu.style.display === 'block') ? 'none' : 'block';
+            updateHistory();
+            updateClassificationsList();
+        });
+
+
+        // Add custom characterization
+        addButton.addEventListener('click', () => {
+            const newChar = newCharacterizationInput.value.trim();
+            if (newChar) {
+                characterizations.push(newChar);
+                newCharacterizationInput.value = ''; // Reset input field
+                alert(`Added new characterization: ${newChar}`);
+                updateClassificationsList();
+            }
+        });
+
+
+        // Capture button event listener
+        captureButton.addEventListener('click', () => {
+            scanLine.style.display = 'block';
+            scanStartSound.play(); // Play sound at the start of scan
+
+
+            setTimeout(() => {
+                scanLine.style.display = 'none';
+                scanEndSound.play(); // Play sound when scan ends
+
+
+                const randomIndex = Math.floor(Math.random() * characterizations.length);
+                const selectedClassification = characterizations[randomIndex];
+
+
+                // Update classification history
+                if (!classificationHistory[selectedClassification]) {
+                    classificationHistory[selectedClassification] = 0;
+                }
+                classificationHistory[selectedClassification]++;
+
+
+                result.textContent = `You are classified as: ${selectedClassification}!`;
+
+
+                // Trigger fireworks and sound
+                triggerFireworks();
+                fireworksSound.play();
+                shareButton.style.display = 'block';
+            }, 2000);
+        });
+
+
+        // Update history list
+        function updateHistory() {
+            historyList.innerHTML = '';
+            for (const classification in classificationHistory) {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${classification}: ${classificationHistory[classification]} times`;
+                historyList.appendChild(listItem);
+            }
+        }
+
+
+        // Update available classifications list
+        function updateClassificationsList() {
+            classificationList.innerHTML = '';
+            characterizations.forEach(char => {
+                const listItem = document.createElement('li');
+                listItem.textContent = char;
+                classificationList.appendChild(listItem);
+            });
+        }
+
+
+        // Share button functionality (screenshot)
+        shareButton.addEventListener('click', () => {
+            html2canvas(document.body).then(canvas => {
+                const image = canvas.toDataURL('image/png');
+                const tempLink = document.createElement('a');
+                tempLink.href = image;
+                tempLink.download = 'classification.png';
+                tempLink.click(); // Automatically download the image
+            });
+        });
+
+
+        // Trigger fireworks animation
+        function triggerFireworks() {
+            fireworksCanvas.width = window.innerWidth;
+            fireworksCanvas.height = window.innerHeight;
+
+
+            const particles = [];
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x: Math.random() * fireworksCanvas.width,
+                    y: fireworksCanvas.height,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    size: Math.random() * 4 + 2,
+                    velocityX: (Math.random() - 0.5) * 5,
+                    velocityY: Math.random() * -8 - 3,
+                    alpha: 1
+                });
+            }
+
+
+            function animate() {
+                fireworksCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+                particles.forEach((p, i) => {
+                    p.x += p.velocityX;
+                    p.y += p.velocityY;
+                    p.alpha -= 0.02;
+                    fireworksCtx.globalAlpha = p.alpha;
+                    fireworksCtx.fillStyle = p.color;
+                    fireworksCtx.beginPath();
+                    fireworksCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    fireworksCtx.fill();
+
+
+                    if (p.alpha <= 0) particles.splice(i, 1); // Remove faded particles
+                });
+                if (particles.length > 0) requestAnimationFrame(animate);
+            }
+
+
+            animate();
+        }
+    </script>
+</body>
+</html>
+
+
